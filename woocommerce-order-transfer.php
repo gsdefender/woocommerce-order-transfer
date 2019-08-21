@@ -7,7 +7,7 @@
   Version: 0.1.0
   Author: Emanuele Cipolla
   Author URI: https://emanuelecipolla.net/
-  License: GPLv2
+  License: GPLv3
  */
 
 defined( 'ABSPATH' ) or exit;
@@ -125,7 +125,7 @@ function wc_order_transfer_gateway_init() {
                     'title'       => __( 'Description', 'wc-gateway-order-transfer' ),
                     'type'        => 'textarea',
                     'description' => __( 'Payment method description that the customer will see on your checkout.', 'wc-gateway-order-transfer' ),
-                    'default'     => __( 'Please transfer order to this user', 'wc-gateway-order-transfer' ),
+                    'default'     => __( 'Please transfer this order to another user', 'wc-gateway-order-transfer' ),
                     'desc_tip'    => true,
                 ),
 
@@ -176,7 +176,6 @@ function wc_order_transfer_gateway_init() {
                 }
                 $order->update_meta_data('_dest_user_id', $dest_user_id);
                 $order->update_meta_data('_dest_account_email', esc_attr($_POST['dest_account_email']));
-                $order->update_meta_data('_transfer_accepted', false);
             }
         }
 
@@ -241,21 +240,28 @@ function wc_order_transfer_add_my_account_order_actions( $actions, $order ) {
         $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
         $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
 
-        $current_user = wp_get_current_user();
+        if(!empty($dest_user_id) || !empty($dest_account_email)) {
+            $current_user = wp_get_current_user();
+            $current_user_id = (isset($current_user->ID) ? (int)$current_user->ID : 0);
 
-        if((!empty($dest_user_id) || !empty($dest_user_email))
-            && ( ($dest_user_id===get_current_user_id()) ||
-                 (empty($dest_user_id) && strcmp($dest_account_email,$current_user->user_email)==0) )
-          ){
-            $actions['accept_transfer'] = array(
-                'url' => '',
-                'name' => __('Accept transfer'),
-            );
-            $actions['refuse_transfer'] = array(
-                'url' => '',
-                'name' => __('Refuse transfer'),
-            );
+            if ($dest_user_id === $current_user_id ||
+                strcmp($dest_account_email, $current_user->user_email) == 0) {
+                $my_account_page_url = get_permalink( get_option('woocommerce_myaccount_page_id') );
+                $actions['accept_transfer'] = array(
+                    'url' => $my_account_page_url.'accept-order-transfer/' . $order->ID,
+                    'name' => __('Accept transfer'),
+                );
+                $actions['decline_transfer'] = array(
+                    'url' => $my_account_page_url.'decline-order-transfer/' . $order->ID,
+                    'name' => __('Decline transfer'),
+                );
+            }
         }
+    } else if ( $order->has_status( 'pending' ) ) {
+        $actions['edit-order'] = array(
+            'url'  => wp_nonce_url( add_query_arg( array( 'order_again' => $order->get_id(), 'edit_order' => $order->get_id() ) ), 'woocommerce-order_again' ),
+            'name' => __( 'Edit Order', 'woocommerce' )
+        );
     }
     return $actions;
 }
@@ -269,8 +275,7 @@ add_filter( 'woocommerce_my_account_my_orders_actions', 'wc_order_transfer_add_m
  */
 function wc_order_transfer_handle_custom_query_var( $query, $query_vars ) {
     $custom_vars = array('_src_user_id', '_dest_user_id',
-        '_dest_account_email',
-        '_transfer_accepted');
+        '_dest_account_email');
 
     foreach($custom_vars as $custom_var) {
         if (!empty($query_vars[$custom_var])) {
@@ -289,11 +294,13 @@ add_filter( 'woocommerce_order_data_store_cpt_get_orders_query', 'wc_order_trans
 // 1. Register new endpoint to use for My Account page
 // Note: Resave Permalinks or it will give 404 error
 
-function wc_order_transfer_add_order_transfer_requests_endpoint() {
+function wc_order_transfer_add_endpoints() {
     add_rewrite_endpoint( 'order-transfer-requests', EP_ROOT | EP_PAGES );
+    add_rewrite_endpoint( 'accept-order-transfer', EP_ROOT | EP_PAGES );
+    add_rewrite_endpoint( 'decline-order-transfer', EP_ROOT | EP_PAGES );
 }
 
-add_action( 'init', 'wc_order_transfer_add_order_transfer_requests_endpoint' );
+add_action( 'init', 'wc_order_transfer_add_endpoints' );
 
 
 // ------------------
@@ -304,7 +311,19 @@ function wc_order_transfer_order_transfer_requests_query_vars( $vars ) {
     return $vars;
 }
 
+function wc_order_transfer_accept_order_transfer_query_vars( $vars ) {
+    $vars[] = 'accept-order-transfer';
+    return $vars;
+}
+
+function wc_order_transfer_decline_order_transfer_query_vars( $vars ) {
+    $vars[] = 'decline-order-transfer';
+    return $vars;
+}
+
 add_filter( 'query_vars', 'wc_order_transfer_order_transfer_requests_query_vars', 0 );
+add_filter( 'query_vars', 'wc_order_transfer_accept_order_transfer_query_vars', 0 );
+add_filter( 'query_vars', 'wc_order_transfer_decline_order_transfer_query_vars', 0 );
 
 
 // ------------------
@@ -322,13 +341,25 @@ add_filter( 'woocommerce_account_menu_items', 'wc_order_transfer_add_order_trans
 // 4. Add content to the new endpoint
 
 function wc_order_transfer_order_transfer_requests_content() {
-    $orders = wc_get_orders( array(
+    $current_user = wp_get_current_user();
+
+    $order_search_params = array(
         'status' => 'on-hold',
         'limit' => -1,
         'orderby' => 'date',
-        'payment_method' => 'order_transfer_gateway',
-        /*'_dest_user_id' => get_current_user_id()*/
-    ) );
+        'payment_method' => 'order_transfer_gateway');
+
+    $order_search_by_user_id_params = $order_search_params;
+    $order_search_by_user_email_params = $order_search_params;
+    $current_user_id = ( isset( $current_user->ID ) ? (int) $current_user->ID : 0 );
+
+    $order_search_by_user_id_params['_dest_user_id'] = $current_user_id;
+    $order_search_by_user_email_params['_dest_account_email'] = $current_user->user_email;
+
+    $order_search_by_user_id_results = wc_get_orders($order_search_by_user_id_params);
+    $order_search_by_user_email_results =  wc_get_orders($order_search_by_user_email_params);
+
+    $orders = array_unique(array_merge($order_search_by_user_id_results, $order_search_by_user_email_results));
 
     $has_orders = !empty($orders);
     echo '<h3>'.__('Order transfer requests').'</h3>';
@@ -348,7 +379,8 @@ function wc_order_transfer_order_transfer_requests_content() {
 			<?php
 			foreach ( $orders as $order ) {
 				$item_count = $order->get_item_count() - $order->get_item_count_refunded();
-				?>
+
+                ?>
 				<tr class="woocommerce-orders-table__row woocommerce-orders-table__row--status-<?php echo esc_attr( $order->get_status() ); ?> order">
 					<?php foreach ( wc_get_account_orders_columns() as $column_id => $column_name ) : ?>
 						<td class="woocommerce-orders-table__cell woocommerce-orders-table__cell-<?php echo esc_attr( $column_id ); ?>" data-title="<?php echo esc_attr( $column_name ); ?>">
@@ -376,6 +408,8 @@ function wc_order_transfer_order_transfer_requests_content() {
 								<?php
 								$actions = wc_get_account_orders_actions( $order );
 
+								unset($actions['view']);
+
 								if ( ! empty( $actions ) ) {
 									foreach ( $actions as $key => $action ) { // phpcs:ignore WordPress.WP.GlobalVariablesOverride.OverrideProhibited
 										echo '<a href="' . esc_url( $action['url'] ) . '" class="woocommerce-button button ' . sanitize_html_class( $key ) . '">' . esc_html( $action['name'] ) . '</a>';
@@ -401,3 +435,102 @@ function wc_order_transfer_order_transfer_requests_content() {
 
 add_action( 'woocommerce_account_order-transfer-requests_endpoint', 'wc_order_transfer_order_transfer_requests_content' );
 // Note: add_action must follow 'woocommerce_account_{your-endpoint-slug}_endpoint' format
+
+add_action( 'template_redirect', function() {
+    global $wp_query;
+    $my_account_page_url = get_permalink( get_option('woocommerce_myaccount_page_id') );
+
+    if ( isset( $wp_query->query_vars['accept-order-transfer'] ) ) {
+        $order_id = $wp_query->query_vars['accept-order-transfer'] ;
+        if(!empty($order_id)) {
+            $order = wc_get_order($order_id);
+            $order->set_payment_method('');
+            $order->set_customer_id(get_current_user_id());
+            $order->save();
+            $order->update_status('pending', $note = __('Transfer accepted.'));
+        }
+        wp_redirect($my_account_page_url);
+        exit;
+    } else if ( isset( $wp_query->query_vars['decline-order-transfer'] ) ) {
+        $order_id = $wp_query->query_vars['decline-order-transfer'];
+        if(!empty($order_id)) {
+            $order = wc_get_order($order_id);
+            $order->update_status('cancelled', $note = __('Transfer declined.'));
+        }
+       wp_redirect($my_account_page_url);
+       exit;
+    }
+    return;
+} );
+
+
+add_action( 'woocommerce_cart_loaded_from_session', 'wc_order_transfer_detect_edit_order' );
+
+function wc_order_transfer_detect_edit_order( $cart ) {
+    if ( isset( $_GET['edit_order'] ) ) {
+        $order_id = absint( $_GET['edit_order'] );
+         $order = wc_get_order($order_id);
+
+         foreach( $order->get_items() as $product_id => $product_item ) {
+             try {
+                 $cart_item_key = $cart->add_to_cart($product_id);
+                 $quantity = $product_item->get_quantity();
+                 $cart->set_quantity($cart_item_key, $quantity);
+             } catch(Throwable $t) {}
+         }
+        WC()->session->set( 'edit_order', absint( $order_id ) );
+    }
+}
+
+// ----------------
+// 4. Display Cart Notice re: Edited Order
+
+add_action( 'woocommerce_before_cart', 'wc_order_transfer_show_me_session' );
+
+function wc_order_transfer_show_me_session() {
+    if ( ! is_cart() ) return;
+    $edited = WC()->session->get('edit_order');
+    if ( ! empty( $edited ) ) {
+        $order = new WC_Order( $edited );
+        $credit = $order->get_total();
+        wc_print_notice( 'A credit of ' . wc_price($credit) . ' has been applied to this new order. Feel free to add products to it or change other details such as delivery date.', 'notice' );
+    }
+}
+
+// ----------------
+// 5. Calculate New Total if Edited Order
+
+add_action( 'woocommerce_cart_calculate_fees', 'wc_order_transfer_use_edit_order_total', 20, 1 );
+
+function wc_order_transfer_use_edit_order_total( $cart ) {
+
+    if ( is_admin() && ! defined( 'DOING_AJAX' ) ) return;
+
+    $edited = WC()->session->get('edit_order');
+    if ( ! empty( $edited ) ) {
+        $order = new WC_Order( $edited );
+        $credit = -1 * $order->get_total();
+        $cart->add_fee( 'Credit', $credit );
+    }
+
+}
+
+// ----------------
+// 6. Save Order Action if New Order is Placed
+
+add_action( 'woocommerce_checkout_update_order_meta', 'wc_order_transfer_save_edit_order' );
+
+function wc_order_transfer_save_edit_order( $order_id ) {
+    $edited = WC()->session->get('edit_order');
+    if ( ! empty( $edited ) ) {
+        // update this new order
+        update_post_meta( $order_id, '_edit_order', $edited );
+        $neworder = new WC_Order( $order_id );
+        $oldorder_edit = get_edit_post_link( $edited );
+        $neworder->add_order_note( 'Order placed after editing. Old order number: <a href="' . $oldorder_edit . '">' . $edited . '</a>' );
+        // cancel previous order
+        $oldorder = new WC_Order( $edited );
+        $neworder_edit = get_edit_post_link( $order_id );
+        $oldorder->update_status( 'cancelled', 'Order cancelled after editing. New order number: <a href="' . $neworder_edit . '">' . $order_id . '</a> -' );
+    }
+}
