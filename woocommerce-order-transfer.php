@@ -527,10 +527,10 @@ function wc_order_transfer_save_edit_order( $order_id ) {
         update_post_meta( $order_id, '_edit_order', $edited );
         $neworder = new WC_Order( $order_id );
         $oldorder_edit = get_edit_post_link( $edited );
-        $neworder->add_order_note( 'Order placed after editing. Old order number: <a href="' . $oldorder_edit . '">' . $edited . '</a>' );
+        $neworder->add_order_note( __('Order placed after editing. Old order number: ').'<a href="' . $oldorder_edit . '">' . $edited . '</a>' );
         // cancel previous order
         $oldorder = new WC_Order( $edited );
         $neworder_edit = get_edit_post_link( $order_id );
-        $oldorder->update_status( 'cancelled', 'Order cancelled after editing. New order number: <a href="' . $neworder_edit . '">' . $order_id . '</a> -' );
+        $oldorder->update_status( 'cancelled', __('Order cancelled after editing. New order number: ').'<a href="' . $neworder_edit . '">' . $order_id . '</a> -' );
     }
 }
