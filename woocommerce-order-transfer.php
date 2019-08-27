@@ -449,7 +449,7 @@ add_action( 'template_redirect', function() {
             $order->save();
             $order->update_status('pending', $note = __('Transfer accepted.'));
         }
-        wp_redirect($my_account_page_url);
+        wp_redirect($my_account_page_url . "orders");
         exit;
     } else if ( isset( $wp_query->query_vars['decline-order-transfer'] ) ) {
         $order_id = $wp_query->query_vars['decline-order-transfer'];
@@ -469,16 +469,17 @@ add_action( 'woocommerce_cart_loaded_from_session', 'wc_order_transfer_detect_ed
 function wc_order_transfer_detect_edit_order( $cart ) {
     if ( isset( $_GET['edit_order'] ) ) {
         $order_id = absint( $_GET['edit_order'] );
-         $order = wc_get_order($order_id);
+        WC()->session->set( 'edit_order', absint( $order_id ) );
+
+        $order = wc_get_order($order_id);
 
          foreach( $order->get_items() as $product_id => $product_item ) {
-             try {
-                 $cart_item_key = $cart->add_to_cart($product_id);
-                 $quantity = $product_item->get_quantity();
-                 $cart->set_quantity($cart_item_key, $quantity);
-             } catch(Throwable $t) {}
+             $product = $product_item->get_product();
+
+             WC()->cart->add_to_cart($product_id,
+                 $product_item->get_quantity(),
+                 $product->get_variation_attributes());
          }
-        WC()->session->set( 'edit_order', absint( $order_id ) );
     }
 }
 
