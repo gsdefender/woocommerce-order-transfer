@@ -149,15 +149,13 @@ function wc_order_transfer_gateway_init() {
 
             echo '<style>#dest_account_email_field label.input { display:inline-block; margin:0 .8em 0 .4em}</style>';
 
-            $option_keys = array_keys($this->options);
-
             woocommerce_form_field( 'dest_account_email', array(
                 'type'          => 'email',
                 'required'      => true,
                 'class'         => array('dest_account_email form-row-wide'),
                 'label'         => __('E-mail address', $this->domain),
                 'validate'      => array('email')
-            ), reset( $option_keys ) );
+            ), null);
         }
 
         /**
