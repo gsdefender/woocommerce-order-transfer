@@ -27,11 +27,26 @@ if ( ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins',
  * @return array $gateways all WC gateways + offline gateway
  */
 function wc_order_transfer_add_to_gateways( $gateways ) {
-    $gateways[] = 'WC_Gateway_Order_Transfer';
+    $gateways['wc-gateway-order-transfer'] = 'WC_Gateway_Order_Transfer';
     return $gateways;
 }
 add_filter( 'woocommerce_payment_gateways', 'wc_order_transfer_add_to_gateways' );
 
+add_filter('woocommerce_available_payment_gateways', 'filter_gateways');
+function filter_gateways($gateways)
+{
+   /* global $post;
+
+    $order = wc_get_order($post->ID);
+
+    $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
+    $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+
+    if ($dest_user_id != '' || $dest_account_email != '') { */
+        unset($gateways['wc-gateway-order-transfer']);
+    /*}*/
+    return $gateways;
+}
 
 /**
  * Adds plugin page links
@@ -156,6 +171,28 @@ function wc_order_transfer_gateway_init() {
                 'label'         => __('E-mail address', $this->domain),
                 'validate'      => array('email')
             ), null);
+        }
+
+        public function validate_fields(){
+
+            if( empty( $_POST[ 'dest_account_email' ]) ) {
+                wc_add_notice(  __( 'Destination email address is required', 'wc-gateway-order-transfer' ), 'error' );
+                return false;
+            } else if (!filter_var($_POST[ 'dest_account_email' ], FILTER_VALIDATE_EMAIL)) {
+                wc_add_notice(  __( 'Invalid destination email address', 'wc-gateway-order-transfer' ), 'error' );
+                return false;
+            } else {
+                $current_user = wp_get_current_user();
+                $user_email = $current_user->user_email;
+
+                if(strcmp($user_email, $_POST[ 'dest_account_email' ])==0) {
+                    wc_add_notice(  __( 'You cannot transfer an order to yourself', 'wc-gateway-order-transfer' ), 'error' );
+                    return false;
+                }
+            }
+
+            return true;
+
         }
 
         /**
@@ -345,20 +382,32 @@ function wc_order_transfer_order_transfer_requests_content() {
         'status' => 'on-hold',
         'limit' => -1,
         'orderby' => 'date',
-        'payment_method' => 'order_transfer_gateway');
+        'payment_method' => 'order_transfer_gateway',
+        'meta_query' =>
+            array(
+            'relation' => 'OR',
+            [
+                'key'     => '_dest_user_id',
+                'compare' => '=',
+                'value'   => $current_user->ID,
+            ],
+            [
+                'key'     => '_dest_account_email',
+                'value'   => $current_user->user_email,
+                'compare' => '='
+            ])
+        );
 
-    $order_search_by_user_id_params = $order_search_params;
-    $order_search_by_user_email_params = $order_search_params;
-    $current_user_id = ( isset( $current_user->ID ) ? (int) $current_user->ID : 0 );
+    $_orders = wc_get_orders($order_search_params);
+    $orders = array();
 
-    $order_search_by_user_id_params['_dest_user_id'] = $current_user_id;
-    $order_search_by_user_email_params['_dest_account_email'] = $current_user->user_email;
+    foreach($_orders as $_order) {
+        $actions = wc_get_account_orders_actions( $_order );
 
-    $order_search_by_user_id_results = wc_get_orders($order_search_by_user_id_params);
-    $order_search_by_user_email_results =  wc_get_orders($order_search_by_user_email_params);
+        unset($actions['view']);
 
-    $orders = array_unique(array_merge($order_search_by_user_id_results, $order_search_by_user_email_results));
-
+        if(count($actions)!=0) array_push($orders, array('order'=>$_order,'actions'=>$actions));
+    }
     $has_orders = !empty($orders);
     echo '<h3>'.__('Order transfer requests').'</h3>';
 
@@ -375,7 +424,9 @@ function wc_order_transfer_order_transfer_requests_content() {
 
 		<tbody>
 			<?php
-			foreach ( $orders as $order ) {
+			foreach ( $orders as $_order ) {
+			    $order = $_order['order'];
+			    $actions = $_order['actions'];
 				$item_count = $order->get_item_count() - $order->get_item_count_refunded();
 
                 ?>
