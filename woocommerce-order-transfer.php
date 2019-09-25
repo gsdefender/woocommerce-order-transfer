@@ -35,16 +35,19 @@ add_filter( 'woocommerce_payment_gateways', 'wc_order_transfer_add_to_gateways' 
 add_filter('woocommerce_available_payment_gateways', 'filter_gateways');
 function filter_gateways($gateways)
 {
-   /* global $post;
+    $url_arr = explode('/', $_SERVER['REQUEST_URI']);
+    if($url_arr[1] == 'checkout' && $url_arr[2] == 'order-pay' && is_user_logged_in() ){
+        $order_id = intval($url_arr[3]);
 
-    $order = wc_get_order($post->ID);
+        $order = wc_get_order($order_id);
+        $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
+        $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
 
-    $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
-    $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+        if (!empty($dest_user_id) || !empty($dest_account_email)) {
+            unset($gateways['order_transfer_gateway']);
+        }
+    }
 
-    if ($dest_user_id != '' || $dest_account_email != '') { */
-        unset($gateways['wc-gateway-order-transfer']);
-    /*}*/
     return $gateways;
 }
 
