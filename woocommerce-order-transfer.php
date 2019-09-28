@@ -507,7 +507,9 @@ add_action( 'template_redirect', function() {
         $order_id = $wp_query->query_vars['decline-order-transfer'];
         if(!empty($order_id)) {
             $order = wc_get_order($order_id);
-            $order->update_status('cancelled', $note = __('Transfer declined.'));
+            $order->update_status('pending', $note = __('Transfer declined.'));
+            wc_delete_order_item_meta( $order_id, '_dest_user_id' );
+            wc_delete_order_item_meta( $order_id, '_dest_account_email' );
         }
        wp_redirect($my_account_page_url);
        exit;
