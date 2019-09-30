@@ -589,3 +589,32 @@ function wc_order_transfer_save_edit_order( $order_id ) {
         $oldorder->update_status( 'cancelled', __('Order cancelled after editing. New order number: ').'<a href="' . $neworder_edit . '">' . $order_id . '</a> -' );
     }
 }
+
+register_activation_hook(__FILE__, 'woocommerce_order_transfer_activation');
+
+function my_activation() {
+    if (! wp_next_scheduled ( 'woocommerce_order_transfer_hourly_jobs' )) {
+        wp_schedule_event(time(), 'hourly', 'woocommerce_order_transfer_hourly_jobs');
+    }
+}
+
+add_action('woocommerce_order_transfer_hourly_jobs', 'check_expired_order_transfers');
+
+function check_expired_order_transfers() {
+    $order_search_params = array(
+        'status' => 'on-hold',
+        'limit' => -1,
+        'orderby' => 'date',
+        'payment_method' => 'order_transfer_gateway',
+        'date_before' => strtotime("-1 day")
+    );
+
+    $_orders = wc_get_orders($order_search_params);
+
+    foreach($_orders as $_order) {
+        $_order->update_status('pending', $note = __('Transfer automatically declined.'));
+        $order_id = $_order->get_id();
+        wc_delete_order_item_meta( $order_id, '_dest_user_id' );
+        wc_delete_order_item_meta( $order_id, '_dest_account_email' );
+    }
+}
