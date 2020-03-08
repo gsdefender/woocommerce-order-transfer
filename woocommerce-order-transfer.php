@@ -4,7 +4,7 @@
   Plugin Name: WooCommerce Order Transfer
   Plugin URI: https://github.com/gsdefender/woocommerce-order-transfer
   Description: WooCommerce plugin to allow transfering a pending order to another user upon checkout
-  Version: 0.1.0
+  Version: 0.1.1
   Author: Emanuele Cipolla
   Author URI: https://emanuelecipolla.net/
   License: GPLv3
@@ -64,7 +64,8 @@ function wc_order_transfer_gateway_plugin_links( $links ) {
         '<a href="' . admin_url( 'admin.php?page=wc-settings&tab=checkout&section=order_transfer_gateway' ) . '">' . __( 'Configure', 'wc-gateway-order-transfer' ) . '</a>'
     );
 
-    return array_merge( $plugin_links, $links );
+    //return array_merge( array_slice($links,0,count($links)-2), $plugin_links, $links[$count($links)-1] );
+    return $links;
 }
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'wc_order_transfer_gateway_plugin_links' );
 
@@ -367,12 +368,20 @@ add_filter( 'query_vars', 'wc_order_transfer_decline_order_transfer_query_vars',
 // ------------------
 // 3. Insert the new endpoint into the My Account menu
 
+function array_insert_after( array $array, $key, array $new ) {
+    $keys = array_keys( $array );
+    $index = array_search( $key, $keys );
+    $pos = false === $index ? count( $array ) : $index + 1;
+
+    return array_merge( array_slice( $array, 0, $pos ), $new, array_slice( $array, $pos ) );
+}
+
 function wc_order_transfer_add_order_transfer_requests_link_my_account( $items ) {
-    $items['order-transfer-requests'] = __('Order transfer requests');
+    $items = array_insert_after($items, 'orders', array('order-transfer-requests' => __('Order transfer requests')));
     return $items;
 }
 
-add_filter( 'woocommerce_account_menu_items', 'wc_order_transfer_add_order_transfer_requests_link_my_account' );
+add_filter( 'woocommerce_account_menu_items', 'wc_order_transfer_add_order_transfer_requests_link_my_account', 99, 1 );
 
 
 // ------------------
@@ -592,7 +601,7 @@ function wc_order_transfer_save_edit_order( $order_id ) {
 
 register_activation_hook(__FILE__, 'woocommerce_order_transfer_activation');
 
-function my_activation() {
+function woocommerce_order_transfer_activation() {
     if (! wp_next_scheduled ( 'woocommerce_order_transfer_hourly_jobs' )) {
         wp_schedule_event(time(), 'hourly', 'woocommerce_order_transfer_hourly_jobs');
     }
