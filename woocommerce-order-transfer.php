@@ -8,6 +8,8 @@
   Author: Emanuele Cipolla
   Author URI: https://emanuelecipolla.net/
   License: GPLv3
+  Text Domain: woocommerce-order-transfer
+  Domain Path: /lang
  */
 
 defined( 'ABSPATH' ) or exit;
@@ -85,6 +87,7 @@ add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), 'wc_order_tran
 add_action( 'plugins_loaded', 'wc_order_transfer_gateway_init', 11 );
 
 function wc_order_transfer_gateway_init() {
+    load_plugin_textdomain( 'woocommerce-order-transfer', FALSE, basename( dirname( __FILE__ ) ) . '/lang/' );
 
     class WC_Gateway_Order_Transfer extends WC_Payment_Gateway {
 
