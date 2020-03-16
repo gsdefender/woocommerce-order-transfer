@@ -1,0 +1,178 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: WooCommerce Order Transfer\n"
+"POT-Creation-Date: 2020-03-15 23:55+0100\n"
+"PO-Revision-Date: 2020-03-15 23:58+0100\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: it_IT\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.3\n"
+"X-Poedit-Basepath: ..\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-Flags-xgettext: --add-comments=translators:\n"
+"X-Poedit-WPHeader: woocommerce-order-transfer.php\n"
+"X-Poedit-SourceCharset: UTF-8\n"
+"X-Poedit-KeywordsList: __;_e;_n:1,2;_x:1,2c;_ex:1,2c;_nx:4c,1,2;esc_attr__;"
+"esc_attr_e;esc_attr_x:1,2c;esc_html__;esc_html_e;esc_html_x:1,2c;_n_noop:1,2;"
+"_nx_noop:3c,1,2;__ngettext_noop:1,2\n"
+"X-Poedit-SearchPath-0: .\n"
+"X-Poedit-SearchPathExcluded-0: *.min.js\n"
+
+#: woocommerce-order-transfer.php:66
+msgid "Configure"
+msgstr "Configura"
+
+#: woocommerce-order-transfer.php:102 woocommerce-order-transfer.php:142
+msgid "Order transfer"
+msgstr "Trasferimento dell'ordine"
+
+#: woocommerce-order-transfer.php:103
+msgid ""
+"Allows transferring orders to another customer.  Orders are marked as \"on-"
+"hold\" when received."
+msgstr ""
+"Consente il trasferimento degli ordini a un altro cliente.  Gli ordini "
+"vengono contrassegnati come \"in attesa\" al momento della ricezione."
+
+#: woocommerce-order-transfer.php:132
+msgid "Enable/Disable"
+msgstr "Abilita/Disabilita"
+
+#: woocommerce-order-transfer.php:134
+msgid "Enable order transfer"
+msgstr "Abilita trasferimento ordini"
+
+#: woocommerce-order-transfer.php:139
+msgid "Title"
+msgstr "Titolo"
+
+#: woocommerce-order-transfer.php:141
+msgid ""
+"This controls the title for the payment method the customer sees during "
+"checkout."
+msgstr ""
+"Questo controlla il titolo del metodo di pagamento che il cliente visualizza "
+"durante il checkout."
+
+#: woocommerce-order-transfer.php:147
+msgid "Description"
+msgstr "Descrizione"
+
+#: woocommerce-order-transfer.php:149
+msgid "Payment method description that the customer will see on your checkout."
+msgstr ""
+"Descrizione del metodo di pagamento che il cliente vedrà al momento "
+"dell'acquisto."
+
+#: woocommerce-order-transfer.php:150
+msgid "Please transfer this order to another user"
+msgstr "Trasferisci questo ordine a un altro utente"
+
+#: woocommerce-order-transfer.php:155
+msgid "Instructions"
+msgstr "Istruzioni"
+
+#: woocommerce-order-transfer.php:157
+msgid "Instructions that will be added to the thank you page and emails."
+msgstr ""
+"Istruzioni che saranno aggiunte alla pagina di ringraziamento e alla mail."
+
+#: woocommerce-order-transfer.php:178
+msgid "E-mail address"
+msgstr "Indirizzo email"
+
+#: woocommerce-order-transfer.php:186
+msgid "Destination email address is required"
+msgstr "L'indirizzo e-mail di destinazione è obbligatorio"
+
+#: woocommerce-order-transfer.php:189
+msgid "Invalid destination email address"
+msgstr "Indirizzo di posta elettronica di destinazione non valido"
+
+#: woocommerce-order-transfer.php:196
+msgid "You cannot transfer an order to yourself"
+msgstr "Non è possibile trasferire un ordine a se stessi"
+
+#: woocommerce-order-transfer.php:261
+msgid "Awaiting order transfer confirmation"
+msgstr "In attesa di conferma del trasferimento dell'ordine"
+
+#: woocommerce-order-transfer.php:294
+msgid "Accept transfer"
+msgstr "Accetta trasferimento"
+
+#: woocommerce-order-transfer.php:298
+msgid "Decline transfer"
+msgstr "Rifiuta trasferimento"
+
+#: woocommerce-order-transfer.php:305
+msgid "Edit Order"
+msgstr "Modifica Ordine"
+
+#: woocommerce-order-transfer.php:383 woocommerce-order-transfer.php:427
+msgid "Order transfer requests"
+msgstr "Richieste di trasferimento ordini"
+
+#: woocommerce-order-transfer.php:456
+msgctxt "hash before order number"
+msgid "#"
+msgstr "#"
+
+#. translators: 1: formatted order total 2: total order items
+#: woocommerce-order-transfer.php:468
+#, php-format
+msgid "%1$s for %2$s item"
+msgid_plural "%1$s for %2$s items"
+msgstr[0] "%1$s per l'elemento %2$s"
+msgstr[1] ""
+
+#: woocommerce-order-transfer.php:495
+msgid "No order has been made yet."
+msgstr "Non è stato ancora effettuato alcun ordine."
+
+#: woocommerce-order-transfer.php:514
+msgid "Transfer accepted."
+msgstr "Trasferimento accettato."
+
+#: woocommerce-order-transfer.php:522
+msgid "Transfer declined."
+msgstr "Trasferimento rifiutato."
+
+#: woocommerce-order-transfer.php:597
+msgid "Order placed after editing. Old order number: "
+msgstr "Ordine effettuato dopo la modifica. Vecchio numero d'ordine:"
+
+#: woocommerce-order-transfer.php:601
+msgid "Order cancelled after editing. New order number: "
+msgstr "Ordine annullato dopo la modifica. Nuovo numero d'ordine:"
+
+#: woocommerce-order-transfer.php:627
+msgid "Transfer automatically declined."
+msgstr "Trasferimento rifiutato automaticamente."
+
+#. Plugin Name of the plugin/theme
+msgid "WooCommerce Order Transfer"
+msgstr "Trasferimento ordini WooCommerce"
+
+#. Plugin URI of the plugin/theme
+msgid "https://github.com/gsdefender/woocommerce-order-transfer"
+msgstr "https://github.com/gsdefender/woocommerce-order-transfer"
+
+#. Description of the plugin/theme
+msgid ""
+"WooCommerce plugin to allow transfering a pending order to another user upon "
+"checkout"
+msgstr ""
+"Plug-in WooCommerce per consentire il trasferimento di un ordine in sospeso "
+"a un altro utente al momento del checkout"
+
+#. Author of the plugin/theme
+msgid "Emanuele Cipolla"
+msgstr "Emanuele Cipolla"
+
+#. Author URI of the plugin/theme
+msgid "https://emanuelecipolla.net/"
+msgstr "https://emanuelecipolla.net/"
