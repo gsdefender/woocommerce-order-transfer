@@ -40,6 +40,7 @@ wp-content/plugins/hello.php
 .idea/**/dynamic.xml
 .idea/**/uiDesigner.xml
 .idea/**/dbnavigator.xml
+.idea/**/sshConfigs.xml
 
 # Gradle
 .idea/**/gradle.xml
