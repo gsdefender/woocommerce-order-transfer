@@ -271,7 +271,7 @@ function wc_order_transfer_gateway_init()
             $order = wc_get_order($order_id);
 
             // Mark as on-hold (we're awaiting the transfer confirmation)
-            $order->update_status('on-hold', __('Awaiting order transfer confirmation', 'wc-gateway-order-transfer'));
+            $order->update_status('on-hold', __('Awaiting order transfer confirmation.', 'wc-gateway-order-transfer'));
 
             // Reduce stock levels
             wc_reduce_stock_levels($order->get_id());
@@ -291,33 +291,35 @@ function wc_order_transfer_gateway_init()
 
 function wc_order_transfer_add_my_account_order_actions($actions, $order)
 {
+    $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
+    $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+    $order_to_be_transferred = !empty($dest_user_id) || !empty($dest_account_email);
 
-    if ($order->has_status('on-hold')) {
-        $dest_user_id = $order->get_meta('_dest_user_id', true, 'view');
-        $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+    if($order_to_be_transferred)
+    {
+        if ($order->has_status('on-hold')) {
+                $current_user = wp_get_current_user();
+                $current_user_id = (isset($current_user->ID) ? (int)$current_user->ID : 0);
 
-        if (!empty($dest_user_id) || !empty($dest_account_email)) {
-            $current_user = wp_get_current_user();
-            $current_user_id = (isset($current_user->ID) ? (int)$current_user->ID : 0);
-
-            if ($dest_user_id === $current_user_id ||
-                strcmp($dest_account_email, $current_user->user_email) == 0) {
-                $my_account_page_url = get_permalink(get_option('woocommerce_myaccount_page_id'));
-                $actions['accept_transfer'] = array(
-                    'url' => $my_account_page_url . 'accept-order-transfer/' . $order->ID,
-                    'name' => __('Accept transfer'),
-                );
-                $actions['decline_transfer'] = array(
-                    'url' => $my_account_page_url . 'decline-order-transfer/' . $order->ID,
-                    'name' => __('Decline transfer'),
-                );
-            }
+                if ($dest_user_id === $current_user_id ||
+                    strcmp($dest_account_email, $current_user->user_email) == 0) {
+                    $my_account_page_url = get_permalink(get_option('woocommerce_myaccount_page_id'));
+                    $actions['accept-transfer'] = array(
+                        'url' => $my_account_page_url . 'accept-order-transfer/' . $order->ID,
+                        'name' => __('Accept transfer'),
+                    );
+                    $actions['decline-transfer'] = array(
+                        'url' => $my_account_page_url . 'decline-order-transfer/' . $order->ID,
+                        'name' => __('Decline transfer'),
+                    );
+                }
+        } else if ($order->has_status('processing')) {
+           $actions['edit-order'] = array(
+                'url' => wp_nonce_url(add_query_arg(array('order_again' => $order->get_id(), 'edit_order' => $order->get_id())), 'woocommerce-order_again'),
+                'name' => __('Edit Order', 'woocommerce')
+            );
+            unset($actions['view']); // There is nothing useful in view action for order transfers.
         }
-    } else if ($order->has_status('pending')) {
-        $actions['edit-order'] = array(
-            'url' => wp_nonce_url(add_query_arg(array('order_again' => $order->get_id(), 'edit_order' => $order->get_id())), 'woocommerce-order_again'),
-            'name' => __('Edit Order', 'woocommerce')
-        );
     }
     return $actions;
 }
@@ -557,7 +559,7 @@ add_action('template_redirect', function () {
             $order->set_shipping_state('');
             $order->set_customer_id(get_current_user_id());
             $order->save();
-            $order->update_status('pending', $note = __('Transfer accepted.'));
+            $order->update_status('processing', $note = __('Transfer accepted.'));
         }
         wp_redirect($my_account_page_url . "orders");
         exit;
@@ -565,9 +567,7 @@ add_action('template_redirect', function () {
         $order_id = $wp_query->query_vars['decline-order-transfer'];
         if (!empty($order_id)) {
             $order = wc_get_order($order_id);
-            $order->update_status('pending', $note = __('Transfer declined.'));
-            wc_delete_order_item_meta($order_id, '_dest_user_id');
-            wc_delete_order_item_meta($order_id, '_dest_account_email');
+            $order->update_status('cancelled', $note = __('Transfer declined.'));
         }
         wp_redirect($my_account_page_url);
         exit;
@@ -580,57 +580,9 @@ add_action('woocommerce_cart_loaded_from_session', 'wc_order_transfer_detect_edi
 
 function wc_order_transfer_detect_edit_order($cart)
 {
-    if (isset($_GET['edit_order'])) {
-        $order_id = absint($_GET['edit_order']);
-        WC()->session->set('edit_order', absint($order_id));
+    if ( isset( $_GET['edit_order'], $_GET['_wpnonce'] ) && is_user_logged_in() && wp_verify_nonce( wp_unslash( $_GET['_wpnonce'] ), 'woocommerce-order_again' ) )
+        WC()->session->set( 'edit_order', absint( $_GET['edit_order'] ) );
 
-        $order = wc_get_order($order_id);
-
-        foreach ($order->get_items() as $product_id => $product_item) {
-            $product = $product_item->get_product();
-            $variations = array();
-            if ( $product->is_type( 'variable' ) ) {
-                $variations = $product->get_variation_attributes();
-            }
-            WC()->cart->add_to_cart($product_id,
-                $product_item->get_quantity(),
-                $variations);
-        }
-    }
-}
-
-// ----------------
-// 4. Display Cart Notice re: Edited Order
-
-add_action('woocommerce_before_cart', 'wc_order_transfer_show_me_session');
-
-function wc_order_transfer_show_me_session()
-{
-    if (!is_cart()) return;
-    $edited = WC()->session->get('edit_order');
-    if (!empty($edited)) {
-        $order = new WC_Order($edited);
-        $credit = $order->get_total();
-        wc_print_notice('A credit of ' . wc_price($credit) . ' has been applied to this new order. Feel free to add products to it or change other details such as delivery date.', 'notice');
-    }
-}
-
-// ----------------
-// 5. Calculate New Total if Edited Order
-
-add_action('woocommerce_cart_calculate_fees', 'wc_order_transfer_use_edit_order_total', 20, 1);
-
-function wc_order_transfer_use_edit_order_total($cart)
-{
-
-    if (is_admin() && !defined('DOING_AJAX')) return;
-
-    $edited = WC()->session->get('edit_order');
-    if (!empty($edited)) {
-        $order = new WC_Order($edited);
-        $credit = -1 * $order->get_total();
-        $cart->add_fee('Credit', $credit);
-    }
 
 }
 
@@ -679,9 +631,16 @@ function check_expired_order_transfers()
     $_orders = wc_get_orders($order_search_params);
 
     foreach ($_orders as $_order) {
-        $_order->update_status('pending', $note = __('Transfer automatically declined.'));
-        $order_id = $_order->get_id();
-        wc_delete_order_item_meta($order_id, '_dest_user_id');
-        wc_delete_order_item_meta($order_id, '_dest_account_email');
+        $_order->update_status('cancelled', $note = __('Transfer automatically declined.'));
     }
+}
+
+// ----------------
+// 1. Allow Order Again for Processing Status
+
+add_filter( 'woocommerce_valid_order_statuses_for_order_again', 'wc_order_transfer_order_again_statuses' );
+
+function wc_order_transfer_order_again_statuses( $statuses ) {
+    $statuses[] = 'processing';
+    return $statuses;
 }
