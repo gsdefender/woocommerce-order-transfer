@@ -30,7 +30,7 @@ if (!in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get
  */
 function wc_order_transfer_add_to_gateways($gateways)
 {
-    $gateways['wc-gateway-order-transfer'] = 'WC_Gateway_Order_Transfer';
+    $gateways['woocommerce-order-transfer'] = 'WC_Gateway_Order_Transfer';
     return $gateways;
 }
 
@@ -66,10 +66,10 @@ function wc_order_transfer_gateway_plugin_links($links)
 {
 
     $plugin_links = array(
-        '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=order_transfer_gateway') . '">' . __('Configure', 'wc-gateway-order-transfer') . '</a>'
+        '<a href="' . admin_url('admin.php?page=wc-settings&tab=checkout&section=order_transfer_gateway') . '">' . __('Configure', 'woocommerce-order-transfer') . '</a>'
     );
 
-    return $links;
+    return $plugin_links;
 }
 
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'wc_order_transfer_gateway_plugin_links');
@@ -105,8 +105,8 @@ function wc_order_transfer_gateway_init()
             $this->id = 'order_transfer_gateway';
             $this->icon = apply_filters('woocommerce_order_transfer_icon', '');
             $this->has_fields = false;
-            $this->method_title = __('Order transfer', 'wc-gateway-order-transfer');
-            $this->method_description = __('Allows transferring orders to another customer.  Orders are marked as "on-hold" when received.', 'wc-gateway-order-transfer');
+            $this->method_title = __('Order transfer', 'woocommerce-order-transfer');
+            $this->method_description = __('Allows transferring orders to another customer.  Orders are marked as "on-hold" when received.', 'woocommerce-order-transfer');
 
             // Load the settings.
             $this->init_form_fields();
@@ -136,32 +136,32 @@ function wc_order_transfer_gateway_init()
             $this->form_fields = apply_filters('wc_order_transfer_form_fields', array(
 
                 'enabled' => array(
-                    'title' => __('Enable/Disable', 'wc-gateway-order-transfer'),
+                    'title' => __('Enable/Disable', 'woocommerce-order-transfer'),
                     'type' => 'checkbox',
-                    'label' => __('Enable order transfer', 'wc-gateway-order-transfer'),
+                    'label' => __('Enable order transfer', 'woocommerce-order-transfer'),
                     'default' => 'yes'
                 ),
 
                 'title' => array(
-                    'title' => __('Title', 'wc-gateway-order-transfer'),
+                    'title' => __('Title', 'woocommerce-order-transfer'),
                     'type' => 'text',
-                    'description' => __('This controls the title for the payment method the customer sees during checkout.', 'wc-gateway-order-transfer'),
-                    'default' => __('Order transfer', 'wc-gateway-order-transfer'),
+                    'description' => __('This controls the title for the payment method the customer sees during checkout.', 'woocommerce-order-transfer'),
+                    'default' => __('Order transfer', 'woocommerce-order-transfer'),
                     'desc_tip' => true,
                 ),
 
                 'description' => array(
-                    'title' => __('Description', 'wc-gateway-order-transfer'),
+                    'title' => __('Description', 'woocommerce-order-transfer'),
                     'type' => 'textarea',
-                    'description' => __('Payment method description that the customer will see on your checkout.', 'wc-gateway-order-transfer'),
-                    'default' => __('Please transfer this order to another user', 'wc-gateway-order-transfer'),
+                    'description' => __('Payment method description that the customer will see on your checkout.', 'woocommerce-order-transfer'),
+                    'default' => __('Please transfer this order to another user', 'woocommerce-order-transfer'),
                     'desc_tip' => true,
                 ),
 
                 'instructions' => array(
-                    'title' => __('Instructions', 'wc-gateway-order-transfer'),
+                    'title' => __('Instructions', 'woocommerce-order-transfer'),
                     'type' => 'textarea',
-                    'description' => __('Instructions that will be added to the thank you page and emails.', 'wc-gateway-order-transfer'),
+                    'description' => __('Instructions that will be added to the thank you page and emails.', 'woocommerce-order-transfer'),
                     'default' => '',
                     'desc_tip' => true,
                 ),
@@ -192,17 +192,17 @@ function wc_order_transfer_gateway_init()
         {
 
             if (empty($_POST['dest_account_email'])) {
-                wc_add_notice(__('Destination email address is required', 'wc-gateway-order-transfer'), 'error');
+                wc_add_notice(__('Destination email address is required', 'woocommerce-order-transfer'), 'error');
                 return false;
             } else if (!filter_var($_POST['dest_account_email'], FILTER_VALIDATE_EMAIL)) {
-                wc_add_notice(__('Invalid destination email address', 'wc-gateway-order-transfer'), 'error');
+                wc_add_notice(__('Invalid destination email address', 'woocommerce-order-transfer'), 'error');
                 return false;
             } else {
                 $current_user = wp_get_current_user();
                 $user_email = $current_user->user_email;
 
                 if (strcmp($user_email, $_POST['dest_account_email']) == 0) {
-                    wc_add_notice(__('You cannot transfer an order to yourself', 'wc-gateway-order-transfer'), 'error');
+                    wc_add_notice(__('You cannot transfer an order to yourself', 'woocommerce-order-transfer'), 'error');
                     return false;
                 }
             }
@@ -271,7 +271,7 @@ function wc_order_transfer_gateway_init()
             $order = wc_get_order($order_id);
 
             // Mark as on-hold (we're awaiting the transfer confirmation)
-            $order->update_status('on-hold', __('Awaiting order transfer confirmation.', 'wc-gateway-order-transfer'));
+            $order->update_status('on-hold', __('Awaiting order transfer confirmation.', 'woocommerce-order-transfer'));
 
             // Reduce stock levels
             wc_reduce_stock_levels($order->get_id());
@@ -306,17 +306,17 @@ function wc_order_transfer_add_my_account_order_actions($actions, $order)
                     $my_account_page_url = get_permalink(get_option('woocommerce_myaccount_page_id'));
                     $actions['accept-transfer'] = array(
                         'url' => $my_account_page_url . 'accept-order-transfer/' . $order->ID,
-                        'name' => __('Accept transfer'),
+                        'name' => __('Accept transfer', 'woocommerce-order-transfer'),
                     );
                     $actions['decline-transfer'] = array(
                         'url' => $my_account_page_url . 'decline-order-transfer/' . $order->ID,
-                        'name' => __('Decline transfer'),
+                        'name' => __('Decline transfer', 'woocommerce-order-transfer'),
                     );
                 }
         } else if ($order->has_status('processing')) {
            $actions['edit-order'] = array(
                 'url' => wp_nonce_url(add_query_arg(array('order_again' => $order->get_id(), 'edit_order' => $order->get_id())), 'woocommerce-order_again'),
-                'name' => __('Edit Order', 'woocommerce')
+                'name' => __('Edit transferred products', 'woocommerce-order-transfer')
             );
             unset($actions['view']); // There is nothing useful in view action for order transfers.
         }
@@ -405,7 +405,7 @@ function array_insert_after(array $array, $key, array $new)
 
 function wc_order_transfer_add_order_transfer_requests_link_my_account($items)
 {
-    $items = array_insert_after($items, 'orders', array('order-transfer-requests' => __('Order transfer requests')));
+    $items = array_insert_after($items, 'orders', array('order-transfer-requests' => __('Order transfer requests', 'woocommerce-order-transfer')));
     return $items;
 }
 
@@ -450,7 +450,7 @@ function wc_order_transfer_order_transfer_requests_content()
         if (count($actions) != 0) array_push($orders, array('order' => $_order, 'actions' => $actions));
     }
     $has_orders = !empty($orders);
-    echo '<h3>' . __('Order transfer requests') . '</h3>';
+    echo '<h3>' . __('Order transfer requests', 'woocommerce-order-transfer') . '</h3>';
 
     if ($has_orders) : ?>
 
@@ -520,7 +520,7 @@ function wc_order_transfer_order_transfer_requests_content()
 
     <?php else : ?>
         <div class="woocommerce-message woocommerce-message--info woocommerce-Message woocommerce-Message--info woocommerce-info">
-            <?php esc_html_e('No order has been made yet.', 'woocommerce'); ?>
+            <?php esc_html_e('No order transfer requests for you.', 'woocommerce-order-transfer'); ?>
         </div>
     <?php endif;
 }
@@ -559,7 +559,7 @@ add_action('template_redirect', function () {
             $order->set_shipping_state('');
             $order->set_customer_id(get_current_user_id());
             $order->save();
-            $order->update_status('processing', $note = __('Transfer accepted.'));
+            $order->update_status('processing', $note = __('Transfer accepted.', 'woocommerce-order-transfer'));
         }
         wp_redirect($my_account_page_url . "orders");
         exit;
@@ -567,7 +567,7 @@ add_action('template_redirect', function () {
         $order_id = $wp_query->query_vars['decline-order-transfer'];
         if (!empty($order_id)) {
             $order = wc_get_order($order_id);
-            $order->update_status('cancelled', $note = __('Transfer declined.'));
+            $order->update_status('cancelled', $note = __('Transfer declined.', 'woocommerce-order-transfer'));
         }
         wp_redirect($my_account_page_url);
         exit;
@@ -599,11 +599,11 @@ function wc_order_transfer_save_edit_order($order_id)
         update_post_meta($order_id, '_edit_order', $edited);
         $neworder = new WC_Order($order_id);
         $oldorder_edit = get_edit_post_link($edited);
-        $neworder->add_order_note(__('Order placed after editing. Old order number: ') . '<a href="' . $oldorder_edit . '">' . $edited . '</a>');
+        $neworder->add_order_note(__('Order placed after transfer. Old order number: ', 'woocommerce-order-transfer') . '<a href="' . $oldorder_edit . '">' . $edited . '</a>');
         // cancel previous order
         $oldorder = new WC_Order($edited);
         $neworder_edit = get_edit_post_link($order_id);
-        $oldorder->update_status('cancelled', __('Order cancelled after editing. New order number: ') . '<a href="' . $neworder_edit . '">' . $order_id . '</a> -');
+        $oldorder->update_status('cancelled', __('Order cancelled after transfer. New order number: ', 'woocommerce-order-transfer') . '<a href="' . $neworder_edit . '">' . $order_id . '</a> -');
     }
 }
 
