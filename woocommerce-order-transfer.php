@@ -120,7 +120,7 @@ function wc_order_transfer_gateway_init()
             // Actions
             add_action('woocommerce_update_options_payment_gateways_' . $this->id, array($this, 'process_admin_options'));
             add_action('woocommerce_checkout_create_order', array($this, 'save_order_payment_type_meta_data'), 10, 2);
-            add_action('woocommerce_thankyou_' . $this->id, array($this, 'thankyou_page'));
+            add_action('woocommerce_thankyou_' . $this->id, array($this, 'thankyou_page'), 10, 1);
 
             // Customer Emails
             add_action('woocommerce_email_before_order_table', array($this, 'email_instructions'), 10, 3);
@@ -161,7 +161,7 @@ function wc_order_transfer_gateway_init()
                 'instructions' => array(
                     'title' => __('Instructions', 'woocommerce-order-transfer'),
                     'type' => 'textarea',
-                    'description' => __('Instructions that will be added to the thank you page and emails.', 'woocommerce-order-transfer'),
+                    'description' => __('Instructions that will be added to the thank you page and emails. Use [dest_email] to substitute destination email address.', 'woocommerce-order-transfer'),
                     'default' => '',
                     'desc_tip' => true,
                 ),
@@ -234,10 +234,13 @@ function wc_order_transfer_gateway_init()
         /**
          * Output for the order received page.
          */
-        public function thankyou_page()
+        public function thankyou_page($order_id)
         {
             if ($this->instructions) {
-                echo wpautop(wptexturize($this->instructions));
+                $order = wc_get_order($order_id);
+                $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+
+                echo wpautop(wptexturize($this->format_instructions($order)));
             }
         }
 
@@ -254,10 +257,17 @@ function wc_order_transfer_gateway_init()
         {
 
             if ($this->instructions && !$sent_to_admin && $this->id === $order->payment_method && $order->has_status('on-hold')) {
-                echo wpautop(wptexturize($this->instructions)) . PHP_EOL;
+                echo wpautop(wptexturize($this->format_instructions($order))) . PHP_EOL;
             }
         }
 
+        private function format_instructions($order) {
+            $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+
+            $instructions = str_replace("[dest_email]", $dest_account_email, $this->instructions);
+
+            return $instructions;
+        }
 
         /**
          * Process the payment and return the result
@@ -644,3 +654,18 @@ function wc_order_transfer_order_again_statuses( $statuses ) {
     $statuses[] = 'processing';
     return $statuses;
 }
+
+function wc_order_transfer_notification_email( $recipient, $order )
+{
+    $payment_method = $order->get_payment_method();
+
+    if ($payment_method === 'order_transfer_gateway') {
+        $dest_account_email = $order->get_meta('_dest_account_email', true, 'view');
+
+        if (!empty($dest_account_email)) {
+            $recipient .= ", " . $dest_account_email;
+        }
+    }
+    return $recipient;
+}
+add_filter('woocommerce_email_recipient_customer_completed_order', 'wc_order_transfer_notification_email', 1, 2);
