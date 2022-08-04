@@ -107,7 +107,8 @@ function wc_order_transfer_gateway_init()
             $this->has_fields = false;
             $this->method_title = __('Order transfer', 'woocommerce-order-transfer');
             $this->method_description = __('Allows transferring orders to another customer.  Orders are marked as "on-hold" when received.', 'woocommerce-order-transfer');
-
+            $this->order_button_text = __('Transfer order', 'woocommerce-order-transfer');
+            
             // Load the settings.
             $this->init_form_fields();
             $this->init_settings();
